@@ -15,7 +15,7 @@ close all;
 
 % grab all the variables from the data folder
 %varnames = variables_in_folder('./data');
-varnames = {'chl','bcar','dic','pc','doc','nit','pn','don','phos','pp','dop','pro','hbact','euk','ph','sil'};
+varnames = {'chl','l12','dic','pc','doc','nit','pn','don','phos','pp','dop','pro','hbact','euk','ph','sil'};
 
 load ./data/allHawaii
 % loop over all the variables
@@ -42,10 +42,9 @@ data.c_sla = interp1(allHawaii.date -10/24,allHawaii.deseas,data.date); % de-tre
 depths = [5 25 45 75 100 125 150 175];
 
 % Extract data at each depth, compute regression, compute statistics for
-% SLA > 5cm & SLA < -5cm
     for j = 1:length(depths)
         ind_dpt = data.depth >= depths(j)-3 & data.depth <= depths(j)+3;
-        % increase depth layer width for 100m for tdn, tdp, don, and dop (why?)
+        % increase depth layer width for 100m for tdn, tdp, don, and dop (Explained in the manuscript)
         if (strcmp(varname,'tdn') || strcmp(varname,'tdp') || strcmp(varname,'don') || strcmp(varname,'dop')) && depths(j)==100
             ind_dpt = data.depth >= depths(j)-7 & data.depth <= depths(j)+7;
         end
@@ -82,8 +81,8 @@ depths = [5 25 45 75 100 125 150 175];
         
 
         % autoregression of SLA for variable k at depth j
-        x1 = ddata.r_sla(1:end-1);
-        x2 = ddata.r_sla(2:end);
+        x1 = ddata.c_sla(1:end-1);
+        x2 = ddata.c_sla(2:end);
 
         % normalize
         z1 = (x1-mean(x1))/std(x1);
@@ -109,32 +108,36 @@ depths = [5 25 45 75 100 125 150 175];
 
     end
 
-
-% SCATTER PLOTS FOR EACH VARIABLE
-pval_thresh = 0.05/(length(depths)*length(varnames));
-    
-plot_REG_phase(depths,eps_var(:,k),eps_sla(:,k),rho_eps(:,k),pval_eps(:,k),pval_thresh);
-subplot_labels(sprintf('%s vs SLA (autoregressed)',varname),'SLA residual',sprintf('%s residual',varname));
-print(sprintf('./results/SLAeps_%s',varname),'-dpng'); 
-close;
-
-plot_REG_phase(depths,eps_var(:,k),z1_sla(:,k),rho_sla(:,k),pval_sla(:,k),pval_thresh);
-subplot_labels(sprintf('%s vs SLA (normalized)',varname),'normalized SLA',sprintf('%s residual',varname));
-print(sprintf('./results/SLAnorm_%s',varname),'-dpng'); 
-close;
-
-
 end
 
+% Significance from BENJAMINI & HOCHBERG PROCEDURE
+[h_eps, ~, ~, ~]=fdr_bh(pval_eps,0.05);
+[h_sla, ~, ~, ~]=fdr_bh(pval_sla,0.05);
 
+for k = 1:length(varnames)
+    
+    plot_REG_phase_h(depths,eps_var(:,k),eps_sla(:,k),rho_eps(:,k),pval_eps(:,k),h_eps(:,k));
+    subplot_labels(sprintf('%s vs SLA (autoregressed)',varnames{k}),'SLA residual',sprintf('%s residual',varnames{k}));
+    print(sprintf('./results/SLAeps_%s',varnames{k}),'-dpng');
+    close;
 
-%% SUMMARY FIGURES
+    plot_REG_phase_h(depths,eps_var(:,k),z1_sla(:,k),rho_sla(:,k),pval_sla(:,k),h_sla(:,k));
+    subplot_labels(sprintf('%s vs SLA (normalized)',varnames{k}),'normalized SLA',sprintf('%s residual',varnames{k}));
+    print(sprintf('./results/SLAnorm_%s',varnames{k}),'-dpng');
+    close;
+    
+end
+
+%% SUMMARY FIGURES 
 
 results_rho = {rho_eps, rho_sla};
 results_pval = {pval_eps, pval_sla};
+results_h = {h_eps, h_sla};
 results_title = strcat('regression coefficients ',{'(autoregressed SLA)','(normalized SLA)'});
 results_save = strcat('./results/',{'SLAeps','SLAnorm'});
 
+%{
+% (0.05 & BONFERRONI)
 % run for two different pvalue thresholds - uncorrected (U) and bonferroni
 % corrected (B)
 pval_thresh = [0.05 0.05/(length(depths)*length(varnames))];
@@ -144,15 +147,31 @@ for p = 1:length(pval_thresh)
     for m = 1:length(results_rho)
 
         % heatmap summaries (H)
-        plot_REG_results(depths,varnames,results_rho{m},results_pval{m},pval_thresh(p));
+        plot_REG_results_h(depths,varnames,results_rho{m},results_pval{m}<pval_thresh(p));
         title(results_title{m});
         print(sprintf('%sH%s',results_save{m},pval_str{p}),'-dpng');
 
         % table summaries (T)
-        plot_REG_table(depths,varnames,results_rho{m},results_pval{m},pval_thresh(p));
+        plot_REG_table_h(depths,varnames,results_rho{m},results_pval{m}<pval_thresh(p));
         print(sprintf('%sT%s',results_save{m},pval_str{p}),'-dpng');
 
     end
+end
+%}
+
+% BENJAMINI & HOCHBERG PROCEDURE
+for m = 1:length(results_rho)
+    
+    % heatmap summaries (H)
+    plot_REG_results_h(depths,varnames,results_rho{m},results_h{m});
+    title(results_title{m});
+    colormap(zerocmap(redbluecmap))
+    print(sprintf('%sH%s',results_save{m},'_B&H'),'-dpng');
+    
+    % table summaries (T)
+    plot_REG_table_h(depths,varnames,results_rho{m},results_h{m});
+    print(sprintf('%sT%s',results_save{m},'_B&H'),'-dpng');
+    
 end
 
 % sampling time histograms

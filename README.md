@@ -7,8 +7,16 @@ Requirements:
 - Matlab ver 2013b or above
 - Gibbs SeaWater (GSW) Oceanographic Toolbox of TEOS-10 available rom http://www.TEOS-10.org
 - lsqfitgm.m, lsqfitx.m and lsqfity.m available from http://www.mbari.org/index-of-downloadable-files/ (by E.T. Peltzer) 
-- readHotDogs.m
+- fdr_bh.m for the Benjamini & Hochberg procedure available from https://www.mathworks.com/matlabcentral/fileexchange/27418-fdr-bh (v2.3 by David M. Groppe)
+- readHotDogs.m, plot_REG_phase_h.m, plot_REG_results_h.m, plot_REG_table_h.m, redbluecmap.m, subplot_labels.m, zerocmap.m 
 
-The data/ folder contains altimetric data and HOT observations from the upper 200 m of the water column
+The auxiliary/ folder contains routines used within mesoHot.m and mesoHot_AR.m
+The data/ folder contains altimetric data and HOT observations from the upper 200 m of the water column. This folder needs to be added to your MATLAB path before calling mesoHot.m.
 
-Benedetto Barone - Sep 2017
+Example of use (in MATLAB’s Command Window):
+
+[rs,pvals,rs_AR,pval_AR] =  mesoHot('pro’)
+
+Produces a plot showing the extreme quartile analysis for Prochlorochoccus in the upper 175 m of the water column & the correlation coefficients from the linear analysis and the autoregression residuals analysis. Function outputs are the correllation coefficients and p values.
+
+Benedetto Barone and Ashley Coenen - Oct 2017
