@@ -1,18 +1,19 @@
-function [rs,pvals,rs_AR,pvals_AR] =  mesoHot(biovar)
+function [rs,pvals,rs_AR,pvals_AR,pvals_rks,datad] =  mesoHot(biovar,method)
 %
-% function [rs,pvals,rs_AR,pvals_AR] =  mesoHot(biovar)
+% function [rs,pvals,rs_AR,pvals_AR,rks,datad] =  mesoHot(biovar,method)
 %
-% Regression analyses of biogeochemical measurements from the Hawaii Ocean
+% Correlation analysis of biogeochemical measurements from the Hawaii Ocean
 % Time-series (HOT) versus Sea Level Anomaly (SLA) from CMEMS.
 % Statistical analyses are done on 8 depth levels in the upper 200 m
 % coinciding with the standard sampling depths of HOT.
 %
-% LINEAR REGRESSIONS:
-% Biogeochemical variables are regressed against both uncorrected SLA and 
-% corrected SLA (i.e. the one with trend and seasonal cycle removed).
-% A third regression is computed between corrected SLA and the monthly 
+% CORRELATION ANALYSIS:
+% The strength of the relationship between biogeochemical variables and
+% uncorrected SLA and corrected SLA (i.e. the one with trend and seasonal 
+% cycle removed) is quantified using correlation coefficients.
+% A third correlation is computed between corrected SLA and the monthly 
 % anomaly of the biogeochemical variable.
-% Regressions are of the Model II geometric mean type.
+% Correlation type can be defined in the input <method>.
 %
 % AUTOREGRESSION RESIDUALS ANALYSIS:
 % Residuals from the autoregression of the  biogeochemical variable are 
@@ -24,12 +25,12 @@ function [rs,pvals,rs_AR,pvals_AR] =  mesoHot(biovar)
 % of the variable in the two different cases are then compared using a rank
 % sum test to check for significant differences (p<0.05).
 %
-% REQUIREMENTS:
+% REQUIREMENTS
 % - Matlab ver 2013b or above
 % - Gibbs SeaWater (GSW) Oceanographic Toolbox of TEOS-10 available rom http://www.TEOS-10.org
-% - lsqfitgm.m, lsqfitx.m and lsqfity.m available from http://www.mbari.org/index-of-downloadable-files/ (by E.T. Peltzer) 
 % - readHotDogs.m
 % - add the data/ folder to your MATLAB path
+% - add the auxiliary/ folder to your MATLAB path
 % 
 % INPUT:
 %   -biovar: biogeochemical variable name chosen among the following:
@@ -37,31 +38,39 @@ function [rs,pvals,rs_AR,pvals_AR] =  mesoHot(biovar)
 % don, dop, dvchl, euk, fuco, hbact, hex, hplc, l12, lln, llp, lut, mvchl,
 % mvdv, nit, pc, pe1-, pe4, pe5, peri, ph, phos, pn, pp, peas, pro, sil,
 % syn, tdn, tdp, theta, viol, zeax
-%
+%   -method: type of correlation, can be
+%           'Pearson' (DEFAULT)
+%           'Spearman'
+%           'Kendall'
 % OUTPUT: 
 %   -rs: correlation coefficients for linear regressions in three cases:
 %           SLA vs. biovar (column 1), corrected SLA vs. biovar (column 2),
 %           and corrected SLA vs. monthly anomaly (column 3)
-%   -pvals: p values for regressions (columns as in rs)
+%   -pvals: p values for correlation significance (columns as in rs)
 %   -rs_AR: correlation coefficients for autoregression residuals analysis
 %           using corrected SLA vs. biovar           
 %   -pvals_AR: p values for autoregression residuals analysis
+%   -pvals_rks: p values of the rank sum test
+%   -datad: data extracted for each depth level
 %
 % VERSION HISTORY:
+%   0.12: add datad in output
+%         remove regression analysis
+%         add method in input (Spearman & Kendall correlations now possible)
 %   0.11: added autoregression residuals analysis
 %         transformed script into function
 %   0.1: first version
 %
-% Benedetto Barone - Oct , 2017 - Version 0.11
+% Benedetto Barone - Feb , 2018 - Version 0.12
 
-
+if nargin <2, method = 'Pearson'; end
 
 % Load altimetry data
 load allHawaii 
 % Extract data for selected variable
 data = readHotDogs([biovar '_0_200m.txt'],1);
 % Compute pigment ratio in the case of mvdv
-if strcmp(data.Properties.VariableNames(7),'mvchla') & strcmp(data.Properties.VariableNames(8),'dvchla')
+if strcmp(data.Properties.VariableNames(7),'mvchla') & width(data)==8 & strcmp(data.Properties.VariableNames(8),'dvchla')
    data.mvchla = data.mvchla./data.dvchla;
    data(:,8) = [];
    data.Properties.VariableNames(7) = {'mvdv'};
@@ -100,6 +109,7 @@ var5p = NaN(8,1); % median SLAcorr >5cm
 p75_5p = NaN(8,1);
 p25_5p = NaN(8,1);
 rks = NaN(8,2); % ranksum test results
+datad = {8};
 
 % Extract data at each depth, compute regression, compute statistics for
 % SLA > 5cm & SLA < -5cm
@@ -117,18 +127,14 @@ for i = 1:8
     um = unique(ddata.month);
     month_m(um) = grpstats(eval(['ddata.' varname]),ddata.month,'mean');
     data_anom = eval(['ddata.' varname]) - month_m(ddata.month);
-    % Model II linear regressions
-    [m_r,b_r,r_r,sm_r,sb_r] = lsqfitgm(ddata.r_sla,eval(['ddata.' varname])); % uncorrected vs. uncorrected
-    [m_c,b_c,r_c,sm_c,sb_c] = lsqfitgm(ddata.c_sla,eval(['ddata.' varname])); % corrected vs. uncorrected
-    [m_cc,b_cc,r_cc,sm_cc,sb_cc] = lsqfitgm(ddata.c_sla,data_anom); % corrected vs. corrected
-    % Coefficients of determination and significance
-    [r_r2,p_r2] = corrcoef(ddata.r_sla*m_r+b_r,eval(['ddata.' varname]));
-    [r_c2,p_c2] = corrcoef(ddata.c_sla*m_c+b_c,eval(['ddata.' varname]));
-    [r_cc2,p_cc2] = corrcoef(ddata.c_sla*m_cc+b_cc,data_anom);
-    ms(i,:) = [m_r m_c m_cc];
-    rs(i,:) = [r_r r_c r_cc];
-    pvals(i,:) = [p_r2(2) p_c2(2) p_cc2(2)];
-    hs(i,:) = [p_r2(2)<0.05 p_c2(2)<0.05 p_cc2(2)<0.05];    
+    datad{i} = ddata;
+    % Correlation coefficients and significance
+    [r_r2,p_r2] = corr(ddata.r_sla,eval(['ddata.' varname]),'type',method);
+    [r_c2,p_c2] = corr(ddata.c_sla,eval(['ddata.' varname]),'type',method);
+    [r_cc2,p_cc2] = corr(ddata.c_sla,data_anom,'type',method);
+    rs(i,:) = [r_r2 r_c2 r_cc2];
+    pvals(i,:) = [p_r2 p_c2 p_cc2];
+    hs(i,:) = [p_r2<0.05 p_c2<0.05 p_cc2<0.05];    
     % Find median values and percentiles for SLAcorr >5cm and <-5cm
     ind5m = ddata.c_sla < -5;
     ind5p = ddata.c_sla > 5;
@@ -165,7 +171,7 @@ for i = 1:8
     eps_sla = z2 - rho*z1;
     clear x1 x2 z1 z2 rho;
     % correlation between variable residual and SLA residual
-    [rs_AR(i),pvals_AR(i)] = corr(eps_var,eps_sla);
+    [rs_AR(i),pvals_AR(i)] = corr(eps_var,eps_sla,'type',method);
     
     % Clear temporary variables
     clear ind_dpt month_m um data_anom P H
@@ -174,6 +180,7 @@ for i = 1:8
     clear ind5m ind5p
     clear eps_var eps_sla
 end
+pvals_rks = rks(:,1);
 
 % Plot median profiles for SLA >5cm and <-5cm 
 clf
@@ -190,7 +197,7 @@ box('on')
 ylim([0 180])
 xlabel([varname ' (' varunits ')'])
 title('Extreme SLA quartiles')
-% Report results of linear regressions 
+% Report results of correlations 
 subplot(1,3,3)
 plot(rs(:,2),depths,'k.-',rs_AR,depths,'r.-',[0 0],[0 180],'k--')
 %{
@@ -213,5 +220,4 @@ hold on, plot(tmpl(2)+0*depths(pvals_AR<0.05),depths(pvals_AR<0.05),'r>','Marker
 set(gca,'ydir','rev','box','on','YTickLabel',{})
 legend('lin','AR'), legend('boxoff')
 title('Corr. coeff.')
-
 clear tmpl sgn ln12 lg i
