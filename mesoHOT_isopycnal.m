@@ -128,6 +128,8 @@ set(gca,'ydir','rev')
 ylim([0 200])
 pdengrid = table(depth_grid',pden_grid');
 pdengrid.Properties.VariableNames = {'depth','sigma'};
+xlabel('Potential density anomaly (kg m^{-3})')
+ylabel('Depth (m)')
 
 %% 4. Isopycnal anomalies of biogeochemical variables
 

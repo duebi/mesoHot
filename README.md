@@ -5,13 +5,15 @@ Sea surface height was produced and distributed by the Copernicus Marine and Env
 
 Requirements:
 - Matlab ver 2013b or above
-- Gibbs SeaWater (GSW) Oceanographic Toolbox of TEOS-10 available rom http://www.TEOS-10.org
+- Gibbs SeaWater (GSW) Oceanographic Toolbox of TEOS-10 available from http://www.TEOS-10.org
 - lsqfitgm.m, lsqfitx.m and lsqfity.m available from http://www.mbari.org/index-of-downloadable-files/ (by E.T. Peltzer) 
 - fdr_bh.m for the Benjamini & Hochberg procedure available from https://www.mathworks.com/matlabcentral/fileexchange/27418-fdr-bh (v2.3 by David M. Groppe)
+- vdist.m for the geodetic distance on the WGS84 earth ellipsoid; available from https://www.mathworks.com/matlabcentral/fileexchange/8607-vectorized-geodetic-distance-and-azimuth-on-the-wgs84-earth-ellipsoid (v1.0  by Michael Kleder)
 - readHotDogs.m, plot_REG_phase_h.m, plot_REG_results_h.m, plot_REG_table_h.m, redbluecmap.m, subplot_labels.m, zerocmap.m 
 
-The auxiliary/ folder contains routines used within mesoHot.m and mesoHot_AR.m
-The data/ folder contains altimetric data and HOT hydrographic and biogeochemical observations. This folder needs to be added to your MATLAB path before calling mesoHot.m or other routines.
+Both auxiliary/ and data/ folders needs to be added to your MATLAB path before calling mesoHot.m or other routines.
+The auxiliary/ folder contains routines used within mesoHot.m
+The data/ folder contains altimetric data and HOT hydrographic and biogeochemical observations.
 
 Example of use (in MATLAB’s Command Window):
 
